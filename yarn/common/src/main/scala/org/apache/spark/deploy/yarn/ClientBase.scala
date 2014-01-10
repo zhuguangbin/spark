@@ -56,8 +56,6 @@ trait ClientBase extends Logging {
   val args: ClientArguments
   val conf: Configuration
   val sparkConf: SparkConf
-
-  //var rpc: YarnRPC = YarnRPC.create(conf)
   val yarnConf: YarnConfiguration
   val credentials = UserGroupInformation.getCurrentUser().getCredentials()
   private val SPARK_STAGING: String = ".sparkStaging"
@@ -143,9 +141,10 @@ trait ClientBase extends Logging {
     }
     //check for ports
     if (srcUri.getPort() != dstUri.getPort()) {
-      return false
+      false
+    } else {
+      true
     }
-    return true
   }
 
   /** Copy the file into HDFS if needed. */
@@ -172,7 +171,7 @@ trait ClientBase extends Logging {
     destPath
   }
 
-  def qualifyForLocal(localURI : URI): Path = {
+  def qualifyForLocal(localURI: URI): Path = {
     var qualifiedURI = localURI
     // If not specified assume these are in the local filesystem to keep behavior like Hadoop
     if (qualifiedURI.getScheme() == null) {
@@ -300,9 +299,9 @@ trait ClientBase extends Logging {
     retval.toString
   }
 
-  def calculateAMMemory(newApp: GetNewApplicationResponse) :Int
+  def calculateAMMemory(newApp: GetNewApplicationResponse): Int
 
-  def setupSecurityToken(amContainer :ContainerLaunchContext)
+  def setupSecurityToken(amContainer: ContainerLaunchContext)
 
   def createContainerLaunchContext(
         newApp: GetNewApplicationResponse,
