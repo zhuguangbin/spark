@@ -23,7 +23,8 @@ import scala.annotation.tailrec
 import scala.util.{Try, Success, Failure}
 import scala.xml.Node
 
-import net.liftweb.json.{JValue, pretty, render}
+import org.json4s.JValue
+import org.json4s.jackson.JsonMethods.{pretty, render}
 
 import org.eclipse.jetty.server.{Server, Request, Handler}
 import org.eclipse.jetty.server.handler.{ResourceHandler, HandlerList, ContextHandler, AbstractHandler}
