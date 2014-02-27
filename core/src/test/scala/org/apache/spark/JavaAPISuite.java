@@ -76,8 +76,9 @@ public class JavaAPISuite implements Serializable {
       else if (a < b) return 1;
       else return 0;
     }
-  };
+  }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void sparkContextUnion() {
     // Union of non-specialized JavaRDDs
@@ -149,6 +150,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(2, foreachCalls);
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void lookup() {
     JavaPairRDD<String, String> categories = sc.parallelizePairs(Arrays.asList(
@@ -180,6 +182,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(5, oddsAndEvens.lookup(false).get(0).size()); // Odds
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void cogroup() {
     JavaPairRDD<String, String> categories = sc.parallelizePairs(Arrays.asList(
@@ -198,6 +201,7 @@ public class JavaAPISuite implements Serializable {
     cogrouped.collect();
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void leftOuterJoin() {
     JavaPairRDD<Integer, Integer> rdd1 = sc.parallelizePairs(Arrays.asList(
@@ -244,6 +248,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(33, sum);
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void foldByKey() {
     List<Tuple2<Integer, Integer>> pairs = Arrays.asList(
@@ -266,6 +271,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(3, sums.lookup(3).get(0).intValue());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void reduceByKey() {
     List<Tuple2<Integer, Integer>> pairs = Arrays.asList(
@@ -321,8 +327,8 @@ public class JavaAPISuite implements Serializable {
   public void take() {
     JavaRDD<Integer> rdd = sc.parallelize(Arrays.asList(1, 1, 2, 3, 5, 8, 13));
     Assert.assertEquals(1, rdd.first().intValue());
-    List<Integer> firstTwo = rdd.take(2);
-    List<Integer> sample = rdd.takeSample(false, 2, 42);
+    rdd.take(2);
+    rdd.takeSample(false, 2, 42);
   }
 
   @Test
@@ -360,8 +366,8 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(2.49444, rdd.stdev(), 0.01);
     Assert.assertEquals(2.73252, rdd.sampleStdev(), 0.01);
 
-    Double first = rdd.first();
-    List<Double> take = rdd.take(5);
+    rdd.first();
+    rdd.take(5);
   }
 
   @Test
@@ -439,11 +445,11 @@ public class JavaAPISuite implements Serializable {
         return lengths;
       }
     });
-    Double x = doubles.first();
-    Assert.assertEquals(5.0, doubles.first().doubleValue(), 0.01);
+    Assert.assertEquals(5.0, doubles.first(), 0.01);
     Assert.assertEquals(11, pairs.count());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void mapsFromPairsToPairs() {
       List<Tuple2<Integer, String>> pairs = Arrays.asList(
@@ -510,6 +516,7 @@ public class JavaAPISuite implements Serializable {
     }
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void persist() {
     JavaDoubleRDD doubleRDD = sc.parallelizeDoubles(Arrays.asList(1.0, 1.0, 2.0, 3.0, 5.0, 8.0));
@@ -574,6 +581,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(expected, readRDD.collect());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void sequenceFile() {
     File tempDir = Files.createTempDir();
@@ -603,6 +611,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(pairs, readRDD.collect());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void writeWithNewAPIHadoopFile() {
     File tempDir = Files.createTempDir();
@@ -633,6 +642,7 @@ public class JavaAPISuite implements Serializable {
     }).collect().toString());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void readWithNewAPIHadoopFile() throws IOException {
     File tempDir = Files.createTempDir();
@@ -675,6 +685,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(expected, readRDD.collect());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void objectFilesOfComplexTypes() {
     File tempDir = Files.createTempDir();
@@ -691,6 +702,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(pairs, readRDD.collect());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void hadoopFile() {
     File tempDir = Files.createTempDir();
@@ -720,6 +732,7 @@ public class JavaAPISuite implements Serializable {
     }).collect().toString());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void hadoopFileCompressed() {
     File tempDir = Files.createTempDir();
@@ -825,7 +838,7 @@ public class JavaAPISuite implements Serializable {
       }
     };
 
-    final Accumulator<Float> floatAccum = sc.accumulator((Float) 10.0f, floatAccumulatorParam);
+    final Accumulator<Float> floatAccum = sc.accumulator(10.0f, floatAccumulatorParam);
     rdd.foreach(new VoidFunction<Integer>() {
       public void call(Integer x) {
         floatAccum.add((float) x);
@@ -877,6 +890,7 @@ public class JavaAPISuite implements Serializable {
     Assert.assertEquals(Arrays.asList(1, 2, 3, 4, 5), recovered.collect());
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void mapOnPairRDD() {
     JavaRDD<Integer> rdd1 = sc.parallelize(Arrays.asList(1,2,3,4));
@@ -901,6 +915,7 @@ public class JavaAPISuite implements Serializable {
 
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void collectPartitions() {
     JavaRDD<Integer> rdd1 = sc.parallelize(Arrays.asList(1, 2, 3, 4, 5, 6, 7), 3);
@@ -969,7 +984,7 @@ public class JavaAPISuite implements Serializable {
   @Test
   public void collectAsMapWithIntArrayValues() {
     // Regression test for SPARK-1040
-    JavaRDD<Integer> rdd = sc.parallelize(Arrays.asList(new Integer[] { 1 }));
+    JavaRDD<Integer> rdd = sc.parallelize(Arrays.asList(1));
     JavaPairRDD<Integer, int[]> pairRDD = rdd.map(new PairFunction<Integer, Integer, int[]>() {
       @Override
       public Tuple2<Integer, int[]> call(Integer x) throws Exception {
@@ -977,6 +992,6 @@ public class JavaAPISuite implements Serializable {
       }
     });
     pairRDD.collect();  // Works fine
-    Map<Integer, int[]> map = pairRDD.collectAsMap();  // Used to crash with ClassCastException
+    pairRDD.collectAsMap();  // Used to crash with ClassCastException
   }
 }

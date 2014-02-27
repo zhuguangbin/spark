@@ -63,8 +63,8 @@ extends Serializable {
   }
 
   /**
-   * Return a new DStream by applying `groupByKey` on each RDD. The supplied [[org.apache.spark.Partitioner]]
-   * is used to control the partitioning of each RDD.
+   * Return a new DStream by applying `groupByKey` on each RDD. The supplied
+   * org.apache.spark.Partitioner is used to control the partitioning of each RDD.
    */
   def groupByKey(partitioner: Partitioner): DStream[(K, Seq[V])] = {
     val createCombiner = (v: V) => ArrayBuffer[V](v)
@@ -94,8 +94,8 @@ extends Serializable {
 
   /**
    * Return a new DStream by applying `reduceByKey` to each RDD. The values for each key are
-   * merged using the supplied reduce function. [[org.apache.spark.Partitioner]] is used to control the
-   * partitioning of each RDD.
+   * merged using the supplied reduce function. org.apache.spark.Partitioner is used to control
+   * the partitioning of each RDD.
    */
   def reduceByKey(reduceFunc: (V, V) => V, partitioner: Partitioner): DStream[(K, V)] = {
     val cleanedReduceFunc = ssc.sc.clean(reduceFunc)
@@ -370,7 +370,7 @@ extends Serializable {
   /**
    * Return a new "state" DStream where the state for each key is updated by applying
    * the given function on the previous state of the key and the new values of the key.
-   * [[org.apache.spark.Partitioner]] is used to control the partitioning of each RDD.
+   * org.apache.spark.Partitioner is used to control the partitioning of each RDD.
    * @param updateFunc State update function. If `this` function returns None, then
    *                   corresponding state key-value pair will be eliminated.
    * @param partitioner Partitioner for controlling the partitioning of each RDD in the new DStream.
@@ -389,7 +389,7 @@ extends Serializable {
   /**
    * Return a new "state" DStream where the state for each key is updated by applying
    * the given function on the previous state of the key and the new values of each key.
-   * [[org.apache.spark.Partitioner]] is used to control the partitioning of each RDD.
+   * org.apache.spark.Partitioner is used to control the partitioning of each RDD.
    * @param updateFunc State update function. If `this` function returns None, then
    *                   corresponding state key-value pair will be eliminated. Note, that
    *                   this function may generate a different a tuple with a different key
@@ -444,7 +444,7 @@ extends Serializable {
 
   /**
    * Return a new DStream by applying 'cogroup' between RDDs of `this` DStream and `other` DStream.
-   * The supplied [[org.apache.spark.Partitioner]] is used to partition the generated RDDs.
+   * The supplied org.apache.spark.Partitioner is used to partition the generated RDDs.
    */
   def cogroup[W: ClassTag](
       other: DStream[(K, W)],
@@ -474,7 +474,7 @@ extends Serializable {
 
   /**
    * Return a new DStream by applying 'join' between RDDs of `this` DStream and `other` DStream.
-   * The supplied [[org.apache.spark.Partitioner]] is used to control the partitioning of each RDD.
+   * The supplied org.apache.spark.Partitioner is used to control the partitioning of each RDD.
    */
   def join[W: ClassTag](
       other: DStream[(K, W)],
@@ -509,7 +509,7 @@ extends Serializable {
 
   /**
    * Return a new DStream by applying 'left outer join' between RDDs of `this` DStream and
-   * `other` DStream. The supplied [[org.apache.spark.Partitioner]] is used to control
+   * `other` DStream. The supplied org.apache.spark.Partitioner is used to control
    * the partitioning of each RDD.
    */
   def leftOuterJoin[W: ClassTag](
@@ -545,7 +545,7 @@ extends Serializable {
 
   /**
    * Return a new DStream by applying 'right outer join' between RDDs of `this` DStream and
-   * `other` DStream. The supplied [[org.apache.spark.Partitioner]] is used to control
+   * `other` DStream. The supplied org.apache.spark.Partitioner is used to control
    * the partitioning of each RDD.
    */
   def rightOuterJoin[W: ClassTag](
