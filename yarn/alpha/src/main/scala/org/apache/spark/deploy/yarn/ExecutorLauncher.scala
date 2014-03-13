@@ -24,6 +24,7 @@ import org.apache.hadoop.yarn.api._
 import org.apache.hadoop.yarn.api.records._
 import org.apache.hadoop.yarn.api.protocolrecords._
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.hadoop.yarn.ipc.YarnRPC
 import org.apache.hadoop.yarn.util.{ConverterUtils, Records}
 import akka.actor._
 import akka.remote._
@@ -32,17 +33,16 @@ import org.apache.spark.{SparkConf, SparkContext, Logging}
 import org.apache.spark.util.{Utils, AkkaUtils}
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend
 import org.apache.spark.scheduler.SplitInfo
-import org.apache.hadoop.yarn.client.api.AMRMClient
-import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest
 
-class WorkerLauncher(args: ApplicationMasterArguments, conf: Configuration, sparkConf: SparkConf)
+class ExecutorLauncher(args: ApplicationMasterArguments, conf: Configuration, sparkConf: SparkConf)
   extends Logging {
 
-  def this(args: ApplicationMasterArguments, sparkConf: SparkConf) =
-    this(args, new Configuration(), sparkConf)
+  def this(args: ApplicationMasterArguments, sparkConf: SparkConf) = this(args, new Configuration(), sparkConf)
 
   def this(args: ApplicationMasterArguments) = this(args, new SparkConf())
 
+  private val rpc: YarnRPC = YarnRPC.create(conf)
+  private var resourceManager: AMRMProtocol = _
   private var appAttemptId: ApplicationAttemptId = _
   private var reporterThread: Thread = _
   private val yarnConf: YarnConfiguration = new YarnConfiguration(conf)
@@ -50,9 +50,7 @@ class WorkerLauncher(args: ApplicationMasterArguments, conf: Configuration, spar
   private var yarnAllocator: YarnAllocationHandler = _
   private var driverClosed:Boolean = false
 
-  private var amClient: AMRMClient[ContainerRequest] = _
-
-  val actorSystem: ActorSystem = AkkaUtils.createActorSystem("sparkYarnAM", Utils.localHostName, 0,
+  val actorSystem : ActorSystem = AkkaUtils.createActorSystem("sparkYarnAM", Utils.localHostName, 0,
     conf = sparkConf)._1
   var actor: ActorRef = _
 
@@ -82,17 +80,28 @@ class WorkerLauncher(args: ApplicationMasterArguments, conf: Configuration, spar
     // then user specified and /tmp.
     System.setProperty("spark.local.dir", getLocalDirs())
 
-    amClient = AMRMClient.createAMRMClient()
-    amClient.init(yarnConf)
-    amClient.start()
-
     appAttemptId = getApplicationAttemptId()
-    registerApplicationMaster()
+    resourceManager = registerWithResourceManager()
+    val appMasterResponse: RegisterApplicationMasterResponse = registerApplicationMaster()
+
+    // Compute number of threads for akka
+    val minimumMemory = appMasterResponse.getMinimumResourceCapability().getMemory()
+
+    if (minimumMemory > 0) {
+      val mem = args.executorMemory + YarnAllocationHandler.MEMORY_OVERHEAD
+      val numCore = (mem  / minimumMemory) + (if (0 != (mem % minimumMemory)) 1 else 0)
+
+      if (numCore > 0) {
+        // do not override - hits https://issues.apache.org/jira/browse/HADOOP-8406
+        // TODO: Uncomment when hadoop is on a version which has this fixed.
+        // args.workerCores = numCore
+      }
+    }
 
     waitForSparkMaster()
 
     // Allocate all containers
-    allocateWorkers()
+    allocateExecutors()
 
     // Launch a progress reporter thread, else app will get killed after expiration (def: 10mins) timeout
     // ensure that progress is sent before YarnConfiguration.RM_AM_EXPIRY_INTERVAL_MS elapse.
@@ -123,30 +132,46 @@ class WorkerLauncher(args: ApplicationMasterArguments, conf: Configuration, spar
     // LOCAL_DIRS => 2.X, YARN_LOCAL_DIRS => 0.23.X
     val localDirs = Option(System.getenv("YARN_LOCAL_DIRS"))
       .orElse(Option(System.getenv("LOCAL_DIRS")))
- 
+
     localDirs match {
       case None => throw new Exception("Yarn Local dirs can't be empty")
       case Some(l) => l
     }
-  } 
+  }
 
   private def getApplicationAttemptId(): ApplicationAttemptId = {
     val envs = System.getenv()
-    val containerIdString = envs.get(ApplicationConstants.Environment.CONTAINER_ID.name())
+    val containerIdString = envs.get(ApplicationConstants.AM_CONTAINER_ID_ENV)
     val containerId = ConverterUtils.toContainerId(containerIdString)
     val appAttemptId = containerId.getApplicationAttemptId()
     logInfo("ApplicationAttemptId: " + appAttemptId)
     appAttemptId
   }
 
+  private def registerWithResourceManager(): AMRMProtocol = {
+    val rmAddress = NetUtils.createSocketAddr(yarnConf.get(
+      YarnConfiguration.RM_SCHEDULER_ADDRESS,
+      YarnConfiguration.DEFAULT_RM_SCHEDULER_ADDRESS))
+    logInfo("Connecting to ResourceManager at " + rmAddress)
+    rpc.getProxy(classOf[AMRMProtocol], rmAddress, conf).asInstanceOf[AMRMProtocol]
+  }
+
   private def registerApplicationMaster(): RegisterApplicationMasterResponse = {
     logInfo("Registering the ApplicationMaster")
-    // TODO:(Raymond) Find out Spark UI address and fill in here?
-    amClient.registerApplicationMaster(Utils.localHostName(), 0, "")
+    val appMasterRequest = Records.newRecord(classOf[RegisterApplicationMasterRequest])
+      .asInstanceOf[RegisterApplicationMasterRequest]
+    appMasterRequest.setApplicationAttemptId(appAttemptId)
+    // Setting this to master host,port - so that the ApplicationReport at client has some sensible info.
+    // Users can then monitor stderr/stdout on that node if required.
+    appMasterRequest.setHost(Utils.localHostName())
+    appMasterRequest.setRpcPort(0)
+    // What do we provide here ? Might make sense to expose something sensible later ?
+    appMasterRequest.setTrackingUrl("")
+    resourceManager.registerApplicationMaster(appMasterRequest)
   }
 
   private def waitForSparkMaster() {
-    logInfo("Waiting for Spark driver to be reachable.")
+    logInfo("Waiting for spark driver to be reachable.")
     var driverUp = false
     val hostport = args.userArgs(0)
     val (driverHost, driverPort) = Utils.parseHostPort(hostport)
@@ -154,17 +179,16 @@ class WorkerLauncher(args: ApplicationMasterArguments, conf: Configuration, spar
       try {
         val socket = new Socket(driverHost, driverPort)
         socket.close()
-        logInfo("Driver now available: %s:%s".format(driverHost, driverPort))
+        logInfo("Master now available: " + driverHost + ":" + driverPort)
         driverUp = true
       } catch {
         case e: Exception =>
-          logError("Failed to connect to driver at %s:%s, retrying ...".
-            format(driverHost, driverPort))
+          logError("Failed to connect to driver at " + driverHost + ":" + driverPort)
         Thread.sleep(100)
       }
     }
-    sparkConf.set("spark.driver.host", driverHost)
-    sparkConf.set("spark.driver.port", driverPort.toString)
+    sparkConf.set("spark.driver.host",  driverHost)
+    sparkConf.set("spark.driver.port",  driverPort.toString)
 
     val driverUrl = "akka.tcp://spark@%s:%s/user/%s".format(
       driverHost, driverPort.toString, CoarseGrainedSchedulerBackend.ACTOR_NAME)
@@ -173,50 +197,41 @@ class WorkerLauncher(args: ApplicationMasterArguments, conf: Configuration, spar
   }
 
 
-  private def allocateWorkers() {
+  private def allocateExecutors() {
 
     // Fixme: should get preferredNodeLocationData from SparkContext, just fake a empty one for now.
     val preferredNodeLocationData: scala.collection.Map[String, scala.collection.Set[SplitInfo]] =
       scala.collection.immutable.Map()
 
-    yarnAllocator = YarnAllocationHandler.newAllocator(
-      yarnConf,
-      amClient,
-      appAttemptId,
-      args,
-      preferredNodeLocationData,
-      sparkConf)
+    yarnAllocator = YarnAllocationHandler.newAllocator(yarnConf, resourceManager, appAttemptId,
+      args, preferredNodeLocationData, sparkConf)
 
-    logInfo("Allocating " + args.numWorkers + " workers.")
+    logInfo("Allocating " + args.numExecutors + " executors.")
     // Wait until all containers have finished
     // TODO: This is a bit ugly. Can we make it nicer?
     // TODO: Handle container failure
-
-    yarnAllocator.addResourceRequests(args.numWorkers)
-    while ((yarnAllocator.getNumWorkersRunning < args.numWorkers) && (!driverClosed)) {
-      yarnAllocator.allocateResources()
+    while ((yarnAllocator.getNumExecutorsRunning < args.numExecutors) && (!driverClosed)) {
+      yarnAllocator.allocateContainers(math.max(args.numExecutors - yarnAllocator.getNumExecutorsRunning, 0))
       Thread.sleep(100)
     }
 
-    logInfo("All workers have launched.")
+    logInfo("All executors have launched.")
 
   }
 
   // TODO: We might want to extend this to allocate more containers in case they die !
   private def launchReporterThread(_sleepTime: Long): Thread = {
-    val sleepTime = if (_sleepTime <= 0) 0 else _sleepTime
+    val sleepTime = if (_sleepTime <= 0 ) 0 else _sleepTime
 
     val t = new Thread {
       override def run() {
         while (!driverClosed) {
-          val missingWorkerCount = args.numWorkers - yarnAllocator.getNumWorkersRunning -
-            yarnAllocator.getNumPendingAllocate
-          if (missingWorkerCount > 0) {
-            logInfo("Allocating %d containers to make up for (potentially) lost containers".
-              format(missingWorkerCount))
-            yarnAllocator.addResourceRequests(missingWorkerCount)
+          val missingExecutorCount = args.numExecutors - yarnAllocator.getNumExecutorsRunning
+          if (missingExecutorCount > 0) {
+            logInfo("Allocating " + missingExecutorCount + " containers to make up for (potentially ?) lost containers")
+            yarnAllocator.allocateContainers(missingExecutorCount)
           }
-          sendProgress()
+          else sendProgress()
           Thread.sleep(sleepTime)
         }
       }
@@ -231,20 +246,25 @@ class WorkerLauncher(args: ApplicationMasterArguments, conf: Configuration, spar
   private def sendProgress() {
     logDebug("Sending progress")
     // simulated with an allocate request with no nodes requested ...
-    yarnAllocator.allocateResources()
+    yarnAllocator.allocateContainers(0)
   }
 
   def finishApplicationMaster(status: FinalApplicationStatus) {
+
     logInfo("finish ApplicationMaster with " + status)
-    amClient.unregisterApplicationMaster(status, "" /* appMessage */ , "" /* appTrackingUrl */)
+    val finishReq = Records.newRecord(classOf[FinishApplicationMasterRequest])
+      .asInstanceOf[FinishApplicationMasterRequest]
+    finishReq.setAppAttemptId(appAttemptId)
+    finishReq.setFinishApplicationStatus(status)
+    resourceManager.finishApplicationMaster(finishReq)
   }
 
 }
 
 
-object WorkerLauncher {
+object ExecutorLauncher {
   def main(argStrings: Array[String]) {
     val args = new ApplicationMasterArguments(argStrings)
-    new WorkerLauncher(args).run()
+    new ExecutorLauncher(args).run()
   }
 }
