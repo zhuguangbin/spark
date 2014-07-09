@@ -158,6 +158,20 @@ object SparkBuild extends PomBuild {
   /* Hive console settings */
   enable(Hive.settings)(hive)
 
+  def bagelSettings = sharedSettings ++ Seq(
+    name := "spark-bagel",
+    previousArtifact := sparkPreviousArtifact("spark-bagel")
+  )
+
+  def mllibSettings = sharedSettings ++ Seq(
+    name := "spark-mllib",
+    previousArtifact := sparkPreviousArtifact("spark-mllib"),
+    libraryDependencies ++= Seq(
+      "org.jblas" % "jblas" % jblasVersion,
+      "org.scalanlp" %% "breeze" % "0.8" excludeAll(excludeJUnit)
+    )
+  )
+
   enable(Flume.settings)(streamingFlumeSink)
 
   // TODO: move this to its upstream project.
