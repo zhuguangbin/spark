@@ -35,13 +35,13 @@ import org.apache.spark.mllib.linalg.{Vectors, Vector}
  * @param updater Updater to be used to update weights after every iteration.
  */
 @DeveloperApi
-class LBFGS(private var gradient: Gradient, private var updater: Updater)
+class LBFGS(protected var gradient: Gradient, protected var updater: Updater)
   extends Optimizer with Logging {
 
-  private var numCorrections = 10
-  private var convergenceTol = 1E-4
-  private var maxNumIterations = 100
-  private var regParam = 0.0
+  protected var numCorrections = 10
+  protected var convergenceTol = 1E-4
+  protected var maxNumIterations = 100
+  protected var regParam = 0.0
 
   /**
    * Set the number of corrections used in the LBFGS update. Default 10.
@@ -184,7 +184,7 @@ object LBFGS extends Logging {
    * CostFun implements Breeze's DiffFunction[T], which returns the loss and gradient
    * at a particular point (weights). It's used in Breeze's convex optimization routines.
    */
-  private class CostFun(
+   class CostFun(
     data: RDD[(Double, Vector)],
     gradient: Gradient,
     updater: Updater,
@@ -216,7 +216,9 @@ object LBFGS extends Logging {
         Vectors.fromBreeze(weights),
         Vectors.dense(new Array[Double](weights.size)), 0, 1, regParam)._2
 
-      val loss = lossSum / numExamples + regVal
+//      val loss = lossSum / numExamples + regVal
+      val loss = lossSum  + regVal
+      logInfo(s"fvalue is: $loss.")
       /**
        * It will return the gradient part of regularization using updater.
        *
@@ -239,7 +241,8 @@ object LBFGS extends Logging {
         Vectors.dense(new Array[Double](weights.size)), 1, 1, regParam)._1.toBreeze
 
       // gradientTotal = gradientSum / numExamples + gradientTotal
-      axpy(1.0 / numExamples, gradientSum, gradientTotal)
+      //axpy(1.0 / numExamples, gradientSum, gradientTotal)
+      axpy(1.0, gradientSum, gradientTotal)
 
       i += 1
 
