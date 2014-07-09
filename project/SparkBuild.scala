@@ -456,6 +456,7 @@ object SparkBuild extends Build {
     )
   )
 
+
   def bagelSettings = sharedSettings ++ Seq(
     name := "spark-bagel",
     previousArtifact := sparkPreviousArtifact("spark-bagel")
@@ -466,7 +467,7 @@ object SparkBuild extends Build {
     previousArtifact := sparkPreviousArtifact("spark-mllib"),
     libraryDependencies ++= Seq(
       "org.jblas" % "jblas" % jblasVersion,
-      "org.scalanlp" %% "breeze" % "0.7"
+      "org.scalanlp" %% "breeze" % "0.8" excludeAll(excludeJUnit)
     )
   )
 
