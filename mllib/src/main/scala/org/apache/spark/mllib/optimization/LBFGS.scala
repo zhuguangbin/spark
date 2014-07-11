@@ -218,7 +218,7 @@ object LBFGS extends Logging {
 
 //      val loss = lossSum / numExamples + regVal
       val loss = lossSum  + regVal
-      logInfo(s"fvalue is: $loss.")
+      logInfo(s"mllibLBFGS:fvalue is: $loss.")
       /**
        * It will return the gradient part of regularization using updater.
        *
@@ -241,7 +241,7 @@ object LBFGS extends Logging {
         Vectors.dense(new Array[Double](weights.size)), 1, 1, regParam)._1.toBreeze
 
       // gradientTotal = gradientSum / numExamples + gradientTotal
-      //axpy(1.0 / numExamples, gradientSum, gradientTotal)
+ //     axpy(1.0 / numExamples, gradientSum, gradientTotal)
       axpy(1.0, gradientSum, gradientTotal)
 
       i += 1
