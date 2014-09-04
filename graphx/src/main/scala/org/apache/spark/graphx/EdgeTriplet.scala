@@ -17,13 +17,15 @@
 
 package org.apache.spark.graphx
 
+import scala.reflect.ClassTag
+
 /**
  * An edge triplet represents an edge along with the vertex attributes of its neighboring vertices.
  *
  * @tparam VD the type of the vertex attribute.
  * @tparam ED the type of the edge attribute
  */
-class EdgeTriplet[VD, ED] extends Edge[ED] {
+class EdgeTriplet[VD: ClassTag, ED: ClassTag] extends Edge[ED] {
   /**
    * The source vertex attribute
    */
