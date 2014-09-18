@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.spark.mllib.optimization
 
 import breeze.optimize.{OWLQN => BreezeOWLQN, CachedDiffFunction}
@@ -52,18 +69,22 @@ class OWLQN(gradient: Gradient) extends LBFGS(gradient, new SquaredL2Updater) {
 object OWLQN extends Logging {
    /**
    * Run OWL-QN in parallel using mini batches.
-   * The cost function to be used here is exactly the same as L-BFGS (which can handle L2 regularization as well).
-   * Then only difference is that instead of L-BFGS from breeze, we use OWL-QN from breeze and we allow the user to
+   * The cost function to be used here is exactly the same as L-BFGS
+   * (which can handle L2 regularization as well).
+   * Then only difference is that instead of L-BFGS from breeze,
+   * we use OWL-QN from breeze and we allow the user to
    * specify the alpha that determines regularization weights between L1 and L2.
    *
-   * @param data - Input data for OWLQN. RDD of the set of data examples, each of the form (label, [feature values]).
+   * @param data - Input data for OWLQN. RDD of the set of data examples, each
+   * of the form (label, [feature values]).
    * @param gradient - Gradient object (used to compute the gradient of the loss function of
    *                   one single data example).
    * @param updater -Updater function to actually perform a gradient step in a given direction.
    * @param numCorrections - The number of corrections used in the OWLQN update.
    * @param maxNumIterations - Maximal number of iterations that OWLQN can be run.
    * @param regParam - Regularization parameter
-   * @param alpha - Between 0.0 and 1.0. L1 weight becomes alpha * regParam. L2 weight becomes (1-alpha)*regParam
+   * @param alpha - Between 0.0 and 1.0. L1 weight becomes alpha * regParam. L2 weight becomes
+   * (1-alpha)*regParam
    * @param initialWeights - Initial weights to start the optimization process from.
    *
    * @return A tuple containing two elements. The first element is a column matrix containing
@@ -87,11 +108,13 @@ object OWLQN extends Logging {
       val l1RegParam = alpha * regParam
       val l2Regparam = (1.0 - alpha) * regParam
 
-      //Cost function doesn't change from LBFGS because breeze's OWLQN code handles all the L1 related things.
+      //Cost function doesn't change from LBFGS because breeze's OWLQN code
+      //handles all the L1 related things.
       val costFun =
         new LBFGS.CostFun(data, gradient, updater, l2Regparam, numExamples)
 
-      val owlqn = new BreezeOWLQN[BDV[Double]](maxNumIterations, numCorrections, l1RegParam, convergenceTol)
+      val owlqn = new BreezeOWLQN[BDV[Double]](maxNumIterations, numCorrections,
+        l1RegParam, convergenceTol)
 
       val states =
         owlqn.iterations(new CachedDiffFunction(costFun), initialWeights.toBreeze.toDenseVector)
