@@ -478,14 +478,8 @@ private[spark] object Utils extends Logging {
    * If no directories could be created, this will return an empty list.
    */
   private[spark] def getOrCreateLocalRootDirs(conf: SparkConf): Array[String] = {
-    val confValue = if (isRunningInYarnContainer(conf)) {
-      // If we are in yarn mode, systems can have different disk layouts so we must set it
-      // to what Yarn on this system said was available.
-      getYarnLocalDirs(conf)
-    } else {
-      Option(conf.getenv("SPARK_LOCAL_DIRS")).getOrElse(
-        conf.get("spark.local.dir", System.getProperty("java.io.tmpdir")))
-    }
+    val confValue = Option(conf.getenv("SPARK_LOCAL_DIRS")).getOrElse(
+            conf.get("spark.local.dir", System.getProperty("java.io.tmpdir")))
     val rootDirs = confValue.split(',')
     logDebug(s"Getting/creating local root dirs at '$confValue'")
 
