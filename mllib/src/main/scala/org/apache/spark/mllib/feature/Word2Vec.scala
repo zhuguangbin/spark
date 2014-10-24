@@ -120,12 +120,22 @@ class Word2Vec extends Serializable with Logging {
   private val MAX_SENTENCE_LENGTH = 1000
 
   /** context words from [-window, window] */
-  private val window = 5
+  private var window = 5
+
+  def setWindow(window: Int): this.type = {
+    this.window = window
+    this
+  }
 
   /** minimum frequency to consider a vocabulary word */
-  private val minCount = 5
+  private var minCount = 5
 
-  private var trainWordsCount = 0
+  def setMinCount(minCount: Int): this.type = {
+    this.minCount = minCount
+    this
+  }
+
+  private var trainWordsCount = 0L
   private var vocabSize = 0
   private var vocab: Array[VocabWord] = null
   private var vocabHash = mutable.HashMap.empty[String, Int]
@@ -142,8 +152,9 @@ class Word2Vec extends Serializable with Logging {
       .filter(_.cn >= minCount)
       .collect()
       .sortWith((a, b) => a.cn > b.cn)
-    
+
     vocabSize = vocab.length
+    logInfo("vocabSize = " + vocabSize)
     var a = 0
     while (a < vocabSize) {
       vocabHash += vocab(a).word -> a
@@ -409,6 +420,8 @@ class Word2Vec extends Serializable with Logging {
 @Experimental
 class Word2VecModel private[mllib] (
     private val model: Map[String, Array[Float]]) extends Serializable {
+
+  def getModel(): Map[String, Array[Float]] = model
 
   private def cosineSimilarity(v1: Array[Float], v2: Array[Float]): Double = {
     require(v1.length == v2.length, "Vectors should have the same length")
