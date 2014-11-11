@@ -42,6 +42,10 @@ class KMeansModel (val clusterCenters: Array[Vector]) extends Serializable {
     points.map(p => KMeans.findClosest(bcCentersWithNorm.value, new BreezeVectorWithNorm(p))._1)
   }
 
+  def predict2(point: Vector): (Int, Double) = {
+    KMeans.findClosest(clusterCentersWithNorm, new BreezeVectorWithNorm(point))
+  }
+
   /** Maps given points to their cluster indices. */
   def predict(points: JavaRDD[Vector]): JavaRDD[java.lang.Integer] =
     predict(points.rdd).toJavaRDD().asInstanceOf[JavaRDD[java.lang.Integer]]
