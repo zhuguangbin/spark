@@ -29,6 +29,7 @@ class KMeansModel (val clusterCenters: Array[Vector]) extends Serializable {
 
   /** Total number of clusters. */
   def k: Int = clusterCenters.length
+  val ccWithNorm: Array[BreezeVectorWithNorm] = clusterCenters.map(new BreezeVectorWithNorm(_))
 
   /** Returns the cluster index that a given point belongs to. */
   def predict(point: Vector): Int = {
@@ -43,7 +44,7 @@ class KMeansModel (val clusterCenters: Array[Vector]) extends Serializable {
   }
 
   def predict2(point: Vector): (Int, Double) = {
-    KMeans.findClosest(clusterCentersWithNorm, new BreezeVectorWithNorm(point))
+    KMeans.findClosest(ccWithNorm, new BreezeVectorWithNorm(point))
   }
 
   /** Maps given points to their cluster indices. */
