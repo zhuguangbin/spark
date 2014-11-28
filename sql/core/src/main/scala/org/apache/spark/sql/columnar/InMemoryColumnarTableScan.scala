@@ -25,16 +25,22 @@ import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions.{Attribute, GenericMutableRow}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.{LeafNode, SparkPlan}
+import org.apache.spark.storage.StorageLevel
 
 object InMemoryRelation {
-  def apply(useCompression: Boolean, batchSize: Int, child: SparkPlan): InMemoryRelation =
-    new InMemoryRelation(child.output, useCompression, batchSize, child)()
+  def apply(
+            useCompression: Boolean,
+            batchSize: Int,
+            storageLevel: StorageLevel,
+            child: SparkPlan): InMemoryRelation =
+    new InMemoryRelation(child.output, useCompression, batchSize, storageLevel, child)()
 }
 
 private[sql] case class InMemoryRelation(
     output: Seq[Attribute],
     useCompression: Boolean,
     batchSize: Int,
+    storageLevel: StorageLevel,
     child: SparkPlan)
     (private var _cachedColumnBuffers: RDD[Array[ByteBuffer]] = null)
   extends LogicalPlan with MultiInstanceRelation {
@@ -73,7 +79,7 @@ private[sql] case class InMemoryRelation(
 
         def hasNext = baseIterator.hasNext
       }
-    }.cache()
+    }.persist(storageLevel)
 
     cached.setName(child.toString)
     _cachedColumnBuffers = cached
@@ -87,6 +93,7 @@ private[sql] case class InMemoryRelation(
       output.map(_.newInstance),
       useCompression,
       batchSize,
+      storageLevel,
       child)(
       _cachedColumnBuffers).asInstanceOf[this.type]
   }
