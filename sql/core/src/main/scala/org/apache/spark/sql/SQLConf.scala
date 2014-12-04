@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql
 
+import org.apache.spark.storage.StorageLevel
 import scala.collection.immutable
 import scala.collection.JavaConversions._
 
@@ -26,6 +27,7 @@ import java.util.Properties
 private[spark] object SQLConf {
   val COMPRESS_CACHED = "spark.sql.inMemoryColumnarStorage.compressed"
   val COLUMN_BATCH_SIZE = "spark.sql.inMemoryColumnarStorage.batchSize"
+  val STORAGE_LEVEL = "spark.sql.inMemoryColumnarStorage.level"
   val AUTO_BROADCASTJOIN_THRESHOLD = "spark.sql.autoBroadcastJoinThreshold"
   val DEFAULT_SIZE_IN_BYTES = "spark.sql.defaultSizeInBytes"
   val SHUFFLE_PARTITIONS = "spark.sql.shuffle.partitions"
@@ -84,6 +86,10 @@ trait SQLConf {
 
   /** The number of rows that will be  */
   private[spark] def columnBatchSize: Int = getConf(COLUMN_BATCH_SIZE, "1000").toInt
+
+  /** The Storage Level of cached RDD */
+  private[spark] def storageLevel: StorageLevel =
+    StorageLevel.fromString(getConf(STORAGE_LEVEL, "MEMORY_ONLY"))
 
   /** Number of partitions to use for shuffle operators. */
   private[spark] def numShufflePartitions: Int = getConf(SHUFFLE_PARTITIONS, "200").toInt
